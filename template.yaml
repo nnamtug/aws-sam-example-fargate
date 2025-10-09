@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Example fargate cluster with some tasks to run on it.
+
+
+Resources:
+
+  # ECS Fargate cluster
+  FargateCluster:
+    Type: AWS::ECS::Cluster
+    # requires 'AWSServiceRoleForECS' which gets created once per account. but fails on first SAM-deployment if it gets created lazily. 
+    Properties:
+      ClusterName: example-fargate
+      CapacityProviders: [FARGATE, FARGATE_SPOT]
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+
+  FargateTaskLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/example-fargate
+      RetentionInDays: 3
+
+  # Definitions for specific tasks to run on the cluster
+  FargateExampleTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  FargateExampleTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+    # Policies: <your custom policies here>
+
+  ExampleTaskRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: "example-fargate/exampletask"
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Delete untagged after 1 day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only 1 latest",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPrefixList": ["latest"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  ExampleTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: example-task
+      # for valid combinations of Cpu and Memory, see "Task size" at
+      # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+      Cpu: '256' # 0.25 vCPU
+      Memory: '512' # 0.5 GB
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt FargateExampleTaskRole.Arn
+      TaskRoleArn: !GetAtt FargateExampleTaskRole.Arn
+      ContainerDefinitions:
+        - Name: videorenderer
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/example-fargate/exampletask:latest"
+          Essential: true
+          StopTimeout: 5 # seconds, BUT it is only the time given to the container to stop after receiving SIGTERM, before it gets SIGKILL'ed
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref FargateTaskLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          ReadonlyRootFilesystem: false
+
+
+
+  # Networking resources -------------------
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for EC2 instance
+      VpcId:
+        Ref: VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0 # Allow all IPv4 outbound traffic
+        - IpProtocol: -1
+          CidrIpv6: ::/0 # Allow all IPv6 outbound traffic
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.212.0.0/16
+      InstanceTenancy: default
+
+  Ipv6CidrBlock:
+    Type: AWS::EC2::VPCCidrBlock
+    Properties:
+      VpcId: !Ref VPC
+      AmazonProvidedIpv6CidrBlock: true
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.212.2.0/24
+      AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock: !Select [0, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.212.3.0/24
+      AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock: !Select [1, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+
+  SubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.212.4.0/24
+      AssignIpv6AddressOnCreation: true
+      Ipv6CidrBlock: !Select [2, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+
+  DefaultRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref RouteTable
+      GatewayId: !Ref InternetGateway
+
+  DefaultIpv6Route:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationIpv6CidrBlock: "::/0"
+      RouteTableId: !Ref RouteTable
+      GatewayId: !Ref InternetGateway
+
+  # Associate Subnet with Route Table
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref RouteTable
+
+  SubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetC
+      RouteTableId: !Ref RouteTable
+
+Outputs:
+  FargateClusterConsoleUrl:
+    Description: "Region-dependent URL to your list ECS Fargate clusters in AWS Console"
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ecs/v2/clusters?region=${AWS::Region}"
+    
+
+  ECRRegistryConsoleUrl:
+    Description: "Region-dependent URL to the specific private ECR container repository for the exampletask in AWS Console (might be empty for now)"
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ecr/repositories/private/${AWS::AccountId}/example-fargate/exampletask?region=${AWS::Region}"
