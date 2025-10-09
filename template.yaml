@@ -135,8 +135,6 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0 # Allow all IPv4 outbound traffic
-        - IpProtocol: -1
-          CidrIpv6: ::/0 # Allow all IPv6 outbound traffic
 
   VPC:
     Type: AWS::EC2::VPC
@@ -144,31 +142,21 @@ Resources:
       CidrBlock: 10.212.0.0/16
       InstanceTenancy: default
 
-  Ipv6CidrBlock:
-    Type: AWS::EC2::VPCCidrBlock
-    Properties:
-      VpcId: !Ref VPC
-      AmazonProvidedIpv6CidrBlock: true
-
   SubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.212.2.0/24
-      AssignIpv6AddressOnCreation: true
-      Ipv6CidrBlock: !Select [0, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
 
   SubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.212.3.0/24
-      AssignIpv6AddressOnCreation: true
-      Ipv6CidrBlock: !Select [1, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
 
 
   SubnetC:
@@ -176,10 +164,8 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.212.4.0/24
-      AssignIpv6AddressOnCreation: true
-      Ipv6CidrBlock: !Select [2, !Cidr [!Select [0, !GetAtt 'VPC.Ipv6CidrBlocks'], 256, 64]]
       AvailabilityZone: !Select [ 2, !GetAZs '' ]
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -202,14 +188,6 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
-      RouteTableId: !Ref RouteTable
-      GatewayId: !Ref InternetGateway
-
-  DefaultIpv6Route:
-    DependsOn: VPCGatewayAttachment
-    Type: AWS::EC2::Route
-    Properties:
-      DestinationIpv6CidrBlock: "::/0"
       RouteTableId: !Ref RouteTable
       GatewayId: !Ref InternetGateway
 
