@@ -62,12 +62,6 @@ https://docs.docker.com/engine/reference/commandline/login/#credential-stores
 
 #### Clean Up
 
-- Delete all images from ECR before stack deletion:
-	```bash
-	./delete-ecr-images.sh
-	```
-	Prompts for confirmation before deleting all images in the ECR repository.
-
 - Delete the stack:
 	```bash
 	./delete-stack.sh
