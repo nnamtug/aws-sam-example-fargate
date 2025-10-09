@@ -16,5 +16,6 @@ ENTRYPOINT ["/bin/sh", "-c", "\
   openssl version && \
   echo && \
   time openssl speed -seconds ${DURATION} -elapsed ${ALGOS} && \
-  echo \"Benchmark complete. That was fun. Bye!\" \
+  echo \"Benchmark complete. That was fun.\" && \
+  echo \"Bye!\" \
 "]

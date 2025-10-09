@@ -45,7 +45,22 @@ Resources:
           - Effect: Allow
             Principal: { Service: ecs-tasks.amazonaws.com }
             Action: sts:AssumeRole
-    # Policies: <your custom policies here>
+      Policies:
+        - PolicyName: ECRPull
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !GetAtt ExampleTaskRepository.Arn
+        # You can add more permissions here if your task needs to access other AWS services
 
   ExampleTaskRepository:
     Type: AWS::ECR::Repository
@@ -93,10 +108,10 @@ Resources:
       Memory: '512' # 0.5 GB
       NetworkMode: awsvpc
       RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: !GetAtt FargateExampleTaskRole.Arn
+      ExecutionRoleArn: !GetAtt FargateExampleTaskExecutionRole.Arn
       TaskRoleArn: !GetAtt FargateExampleTaskRole.Arn
       ContainerDefinitions:
-        - Name: videorenderer
+        - Name: example-task
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/example-fargate/exampletask:latest"
           Essential: true
           StopTimeout: 5 # seconds, BUT it is only the time given to the container to stop after receiving SIGTERM, before it gets SIGKILL'ed
@@ -105,7 +120,7 @@ Resources:
             Options:
               awslogs-group: !Ref FargateTaskLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
+              awslogs-stream-prefix: example-fargate
           ReadonlyRootFilesystem: false
 
 
