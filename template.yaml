@@ -11,7 +11,6 @@ Resources:
     Type: AWS::ECS::Cluster
     # requires 'AWSServiceRoleForECS' which gets created once per account. but fails on first SAM-deployment if it gets created lazily. 
     Properties:
-      ClusterName: example-fargate
       CapacityProviders: [FARGATE, FARGATE_SPOT]
       DefaultCapacityProviderStrategy:
         - CapacityProvider: FARGATE
@@ -20,7 +19,7 @@ Resources:
   FargateTaskLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /ecs/example-fargate
+      LogGroupName: !Sub "/ecs/${FargateCluster}"
       RetentionInDays: 3
 
   # Definitions for specific tasks to run on the cluster
@@ -65,7 +64,7 @@ Resources:
   ExampleTaskRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "example-fargate/exampletask"
+      RepositoryName: !Sub "${AWS::StackName}/exampletask"
       ImageTagMutability: MUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
@@ -112,7 +111,7 @@ Resources:
       TaskRoleArn: !GetAtt FargateExampleTaskRole.Arn
       ContainerDefinitions:
         - Name: example-task
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/example-fargate/exampletask:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AWS::StackName}/exampletask:latest"
           Essential: true
           StopTimeout: 5 # seconds, BUT it is only the time given to the container to stop after receiving SIGTERM, before it gets SIGKILL'ed
           LogConfiguration:
@@ -120,7 +119,7 @@ Resources:
             Options:
               awslogs-group: !Ref FargateTaskLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: example-fargate
+              awslogs-stream-prefix: !Ref FargateCluster
           ReadonlyRootFilesystem: false
 
 
@@ -218,4 +217,4 @@ Outputs:
 
   ECRRegistryConsoleUrl:
     Description: "Region-dependent URL to the specific private ECR container repository for the exampletask in AWS Console (might be empty for now)"
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ecr/repositories/private/${AWS::AccountId}/example-fargate/exampletask?region=${AWS::Region}"
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/ecr/repositories/private/${AWS::AccountId}/${AWS::StackName}/exampletask?region=${AWS::Region}"

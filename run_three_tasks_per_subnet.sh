@@ -39,7 +39,7 @@ for i in "${!SUBNETS[@]}"; do
   done
 
 echo "See the logs in CloudWatch Log Group:"
-echo "https://${REGION}.console.aws.amazon.com/cloudwatch/home?region=${REGION}#logsV2:log-groups/log-group/%2Fecs%2Fexample-fargate"
+echo "https://${REGION}.console.aws.amazon.com/cloudwatch/home?region=${REGION}#logsV2:log-groups/log-group/%2Fecs%2F${CLUSTER_NAME}"
 
 echo ""
 echo "Remember: You will be charged for the Fargate tasks while they are running."
