@@ -60,7 +60,7 @@ https://docs.docker.com/engine/reference/commandline/login/#credential-stores
 	```
 	Launches ECS Fargate tasks in each subnet (A, B, C), with a pause between launches. After each launch, the script prints links to the AWS Console for cluster and task monitoring, and at the end, a link to the CloudWatch log group.
 
-#### Clean Up
+### Clean Up
 
 - Delete the stack:
 	```bash
