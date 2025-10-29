@@ -1,8 +1,5 @@
-## AWS SAM Example Fargate
-
-
-This project demonstrates deploying and managing ECS Fargate tasks using AWS SAM, with automated build, deployment, and teardown scripts.
-
+# AWS SAM Example on AWS Fargate
+Deploy a serverless containerized application to AWS Fargate using the AWS Serverless Application Model (SAM).
 
 **Note:** Fargate tasks are defined as Docker images. You build and push these images to Amazon ECR, and then ECS Fargate runs them as containers.
 
