@@ -3,7 +3,7 @@ version: 2
 updates:
   # Keep Docker base images (e.g., alpine) up to date
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/fargate/exampletask"
     schedule:
       interval: "weekly"
 
