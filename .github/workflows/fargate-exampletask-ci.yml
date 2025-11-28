@@ -1,0 +1,25 @@
+name: Build and test fargate/exampletask
+
+on:
+  push:
+    branches:
+      - main
+      - '*'
+  pull_request:
+
+jobs:
+  build-and-run-exampletask:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for exampletask
+        run: |
+          docker build -t fargate-example-exampletask:test ./fargate/exampletask
+
+      - name: Run Docker image and verify it completes successfully
+        run: |
+          # Use a short duration to keep CI fast
+          docker run --rm -e DURATION=1 fargate-example-exampletask:test
