@@ -1,5 +1,5 @@
 # Dockerfile
-FROM alpine:3.22
+FROM alpine:3.23
 
 # Minimal footprint; OpenSSL provides the 'speed' command we need
 RUN apk add --no-cache openssl
